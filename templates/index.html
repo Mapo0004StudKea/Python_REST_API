@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Media Library</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>Media Library</h1>
+
+  <form id="searchForm">
+    <input type="text" id="title" placeholder="Title" required />
+    <select id="type">
+      <option value="movie">Movie</option>
+      <option value="anime">Anime</option>
+    </select>
+    <button type="submit">Search & Save</button>
+  </form>
+
+  <h2>Saved Media</h2>
+  <div id="mediaList"></div>
+
+  <script>
+    document.getElementById('searchForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('title').value;
+      const type = document.getElementById('type').value;
+
+      const res = await fetch('/api/search', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, type})
+      });
+      const data = await res.json();
+      alert(data.message || data.error);
+      loadMedia();
+    });
+
+    async function loadMedia() {
+      const res = await fetch('/api/movies');
+      const data = await res.json();
+      const container = document.getElementById('mediaList');
+      container.innerHTML = '';
+
+      data.forEach(m => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        card.innerHTML = `
+          <h3>${m.title} (${m.year})</h3>
+          <p><strong>Type:</strong> ${m.source_type}</p>
+          <p><strong>Genre:</strong> ${m.genre}</p>
+          <p>${m.plot}</p>
+          <p><strong>Favorite:</strong> <span style="color:${m.favorite ? 'red' : 'gray'};">${m.favorite ? 'Yes' : 'No'}</span></p>
+
+          <textarea placeholder="Write a review...">${m.user_review || ''}</textarea><br>
+          <button onclick="saveReview(${m.id}, this.previousElementSibling.value)">Save Review</button>
+          <button onclick="toggleFavorite(${m.id})">Toggle Favorite</button>
+          <button onclick="deleteMedia(${m.id})">Delete</button>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    async function toggleFavorite(id) {
+      const res = await fetch(`/api/movies/${id}/favorite`, { method: 'PATCH' });
+      const data = await res.json();
+      alert(data.message);
+      loadMedia();
+    }
+
+    async function saveReview(id, review) {
+      const res = await fetch(`/api/movies/${id}/review`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ review })
+      });
+      const data = await res.json();
+      alert(data.message);
+    }
+
+    async function deleteMedia(id) {
+      if (!confirm("Are you sure you want to delete this item?")) return;
+      const res = await fetch(`/api/movies/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      alert(data.message);
+      loadMedia();
+    }
+
+    loadMedia();
+  </script>
+</body>
+</html>
